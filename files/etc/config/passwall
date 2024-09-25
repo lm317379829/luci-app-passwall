@@ -1,0 +1,7 @@
+
+config passwall 'singBox'
+	option control 'stop'
+	list configTemplate '{"1": 1}
+2'
+	list configTemplate '{"1": 1}'
+
