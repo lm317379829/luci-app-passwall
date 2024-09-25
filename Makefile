@@ -8,16 +8,7 @@ PKG_NAME:=luci-app-passwall
 PKG_VERSION:=1.0
 PKG_RELEASE:=1
 
-include $(INCLUDE_DIR)/package.mk
-
-define Package/$(PKG_NAME)
-  SECTION:=luci
-  CATEGORY:=LuCI
-  SUBMENU:=3. Applications
-  TITLE:=$(LUCI_TITLE)
-  PKGARCH:=$(LUCI_PKGARCH)
-  DEPENDS:=$(LUCI_DEPENDS)
-endef
+include $(TOPDIR)/feeds/luci/luci.mk
 
 define Package/$(PKG_NAME)/install
 	$(INSTALL_DIR) $(1)/etc/config
