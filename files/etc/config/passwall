@@ -1,2 +1,2 @@
-config passwall 'singBox'
+config passwall 'passwall'
 	option control 'stop'
