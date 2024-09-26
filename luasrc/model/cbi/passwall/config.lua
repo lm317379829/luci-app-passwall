@@ -1,7 +1,7 @@
 m = Map("passwall")
 s = m:section(TypedSection, "passwall")
 local fs = require "nixio.fs"
-local filePath = "/usr/local/etc/singBox/config.json"
+local filePath = "/usr/local/etc/passwall/config.json"
 
 configTemplate = s:option(Value, "configTemplate")
 configTemplate.template = "cbi/tvalue"
