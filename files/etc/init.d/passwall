@@ -49,17 +49,18 @@ start_service() {
 
 stop_service() {
 	# 删除自定义链中的规则
-	iptables -t mangle -F singBox
-	iptables -t mangle -F singBoxSelf
+	iptables -t mangle -F singBox 2>/dev/null
+	iptables -t mangle -F singBoxSelf 2>/dev/null
 	# 删除自定义链
-	iptables -t mangle -X singBox
-	iptables -t mangle -X singBoxSelf
+	iptables -t mangle -X singBox 2>/dev/null
+	iptables -t mangle -X singBoxSelf 2>/dev/null
 	# 删除在 PREROUTING 和 OUTPUT 链中添加的规则
-	iptables -t mangle -D PREROUTING -j singBox
-	iptables -t mangle -D OUTPUT -j singBoxSelf
+	iptables -t mangle -D PREROUTING -j singBox 2>/dev/null
+	iptables -t mangle -D OUTPUT -j singBoxSelf 2>/dev/null
 	# 删除路由表和规则
-	ip route del local default dev lo table 100
-	ip rule del fwmark 1 table 100
-	
+	if ip route show table 100 | grep -q 'local default dev lo'; then
+		ip route del local default dev lo table 100
+		ip rule del fwmark 1 table 100
+	fi
 	procd_close_instance
 }
