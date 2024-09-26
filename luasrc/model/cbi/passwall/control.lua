@@ -12,8 +12,8 @@ end
 o = s:option(ListValue, "control", "控制")
 
 -- 定义选项的值
-o:value("stop", "停止")
 o:value("start", "启动")
+o:value("stop", "停止")
 o:value("restart", "重启")
 
 -- 定义根据选项执行不同的函数
@@ -24,6 +24,12 @@ function o.write(self, section, value)
         stopPassWall()
     elseif value == "restart" then
         restartPassWall()
+        local running = luci.sys.call("pgrep sing-box >/dev/null") == 0
+        if running then
+            value = "start"
+        else
+            value = "stop"
+        end
     end
     return ListValue.write(self, section, value)
 end
@@ -40,7 +46,7 @@ function stopPassWall()
 end
 
 function restartPassWall()
-    luci.sys.call("/etc/init.d/singbox stop && /etc/init.d/passwall start")
+    luci.sys.call("/etc/init.d/passwall restart")
     luci.http.redirect(luci.dispatcher.build_url("admin", "services", "passwall"))
 end
 
