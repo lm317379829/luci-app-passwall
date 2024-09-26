@@ -1,5 +1,5 @@
 local fs = require("nixio.fs")
-local rulesDir = "/usr/local/etc/singBox/rules"
+local rulesDir = "/usr/local/etc/passwall/rules"
 
 -- 获取规则文件列表
 local function getRuleFiles()
