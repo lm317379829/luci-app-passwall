@@ -24,12 +24,7 @@ function o.write(self, section, value)
         stopPassWall()
     elseif value == "restart" then
         restartPassWall()
-        local running = luci.sys.call("pgrep sing-box >/dev/null") == 0
-        if running then
-            value = "start"
-        else
-            value = "stop"
-        end
+        value = "start"
     end
     return ListValue.write(self, section, value)
 end
