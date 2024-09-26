@@ -19,28 +19,28 @@ o:value("restart", "重启")
 -- 定义根据选项执行不同的函数
 function o.write(self, section, value)
     if value == "start" then
-        startSingBox()
+        startPassWall()
     elseif value == "stop" then
-        stopSingBox()
+        stopPassWall()
     elseif value == "restart" then
-        restartSingBox()
+        restartPassWall()
     end
     return ListValue.write(self, section, value)
 end
 
 -- 定义不同选项对应的函数
-function startSingBox()
-    luci.sys.call("/etc/init.d/singbox start")
+function startPassWall()
+    luci.sys.call("/etc/init.d/passwall enable && /etc/init.d/passwall start")
     luci.http.redirect(luci.dispatcher.build_url("admin", "services", "passwall"))
 end
 
-function stopSingBox()
-    luci.sys.call("/etc/init.d/singbox stop")
+function stopPassWall()
+    luci.sys.call("/etc/init.d/passwall disable && /etc/init.d/passwall stop")
     luci.http.redirect(luci.dispatcher.build_url("admin", "services", "passwall"))
 end
 
-function restartSingBox()
-    luci.sys.call("/etc/init.d/singbox restart")
+function restartPassWall()
+    luci.sys.call("/etc/init.d/singbox stop && /etc/init.d/passwall start")
     luci.http.redirect(luci.dispatcher.build_url("admin", "services", "passwall"))
 end
 
