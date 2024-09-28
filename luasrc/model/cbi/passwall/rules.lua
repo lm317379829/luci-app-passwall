@@ -9,6 +9,16 @@ local function getRuleFiles()
             table.insert(files, file)
         end
     end
+
+    -- 排序函数：先按长度排序，如果长度相同，按第一个字符排序
+    table.sort(files, function(a, b)
+        if #a == #b then
+            return a:sub(1, 1) < b:sub(1, 1)  -- 长度相同时，按第一个字符排序
+        else
+            return #a < #b  -- 按长度从短到长排序
+        end
+    end)
+
     return files
 end
 
