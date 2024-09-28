@@ -102,8 +102,8 @@ creat_rules() {
 			esac
 		done </usr/local/etc/passwall/rules/局域网设备白名单.txt
 		for port in $ports; do
-			iptables -t mangle -A passwallIPV4MASK -p udp --sport $port -j RETURN
-			iptables -t mangle -A passwallIPV4MASK -p tcp --sport $port -j RETURN
+			iptables -t mangle -A passwallIPV4 -p udp --sport $port -j RETURN
+			iptables -t mangle -A passwallIPV4 -p tcp --sport $port -j RETURN
 		done
 		if [ -z "$passwallMark" ]; then
 			iptables -t mangle -A passwallIPV4 -j RETURN -m mark --mark $passwallMark
