@@ -74,7 +74,7 @@ creat_rules() {
 		# 获取都名代理端口
 		tproxyPort=$(cat /usr/local/etc/passwall/config.json | jq -r '.inbounds[] | select(.type == "tproxy") | .listen_port')
 		# 获取代理流量标志
-		passwallMark=$(cat /usr/local/etc/passwall/config.json | grep mark | head -n 1 | cut -d \: -f2 | sed s/,//g)
+		passwallMark=$(cat /usr/local/etc/passwall/config.json | grep mark | head -n 1 | cut -d \: -f2 | sed 's/,//g' | sed 's/^ *//;s/ *$//')
 		# 获取所有iptables规则端口
 		ports=$(iptables -L -n | grep dpt: | awk '{for(i=1;i<=NF;i++) if ($i ~ /dpt:/) print $i}' | cut -d: -f2 | sort -n | uniq)
 		# 获取本机IPV4网段
@@ -163,8 +163,8 @@ creat_rules() {
 			if [ -z "$passwallMark" ]; then
 				ip6tables -t mangle -A passwallIPV6 -j RETURN -m mark --mark $passwallMark
 			fi
-			ip6tables -t mangle -A passwallIPV6 -p udp -j TPROXY --on-ip ::1 --on-port $tproxyPort --tproxy-mark 1 #改为自己的端口
-			ip6tables -t mangle -A passwallIPV6 -p tcp -j TPROXY --on-ip ::1 --on-port $tproxyPort --tproxy-mark 1 #改为自己的端口
+			ip6tables -t mangle -A passwallIPV6 -p udp -j TPROXY --on-ip ::1 --on-port $tproxyPort --tproxy-mark 1
+			ip6tables -t mangle -A passwallIPV6 -p tcp -j TPROXY --on-ip ::1 --on-port $tproxyPort --tproxy-mark 1
 			ip6tables -t mangle -A PREROUTING -j passwallIPV6
 
 			# 本机IPV6设置
