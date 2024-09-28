@@ -46,7 +46,7 @@ function startPassWall()
 end
 
 function stopPassWall()
-    luci.sys.call("/etc/init.d/passwall disable && /etc/init.d/passwall stop")
+    luci.sys.call("/etc/init.d/passwall stop && /etc/init.d/passwall disable")
     luci.http.redirect(luci.dispatcher.build_url("admin", "services", "passwall"))
 end
 
