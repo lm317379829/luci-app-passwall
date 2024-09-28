@@ -22,7 +22,15 @@ local function getRuleFiles()
     return files
 end
 
-m = Map("passwall")
+local description = [[
+domain：匹配完整域名<br>
+domain_suffix：匹配域名后缀<br>
+domain_keyword：匹配域名关键字<br>
+ip_cidr：匹配 IP CIDR<br>
+详见：<a href="https://sing-box.sagernet.org/zh/configuration/route/rule/" target="_blank">https://sing-box.sagernet.org/zh/configuration/route/rule/</a>
+]]
+
+m = Map("passwall", translate(""), translate(description))
 local ruleFiles = getRuleFiles()
 if #ruleFiles == 0 then
     local tpl = require("luci.template")
