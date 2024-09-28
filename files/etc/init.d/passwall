@@ -1,4 +1,4 @@
-#!/bin/bash /etc/rc.common
+#!/bin/sh /etc/rc.common
 # procd init script for passwall
 
 START=99
@@ -13,47 +13,59 @@ start_service() {
 	procd_set_param stdout 1
 	procd_set_param stderr 1
 	procd_close_instance
-	creat_rules
+	creat_rules 2>/dev/null
 }
 
 stop_service() {
-	clean_rules
-	killall passwall
+	clean_rules 2>/dev/null
+	killall -9 passwall 2>/dev/null
 	procd_close_instance
 }
 
 clean_rules() {
-	# 清除链中的所有规则
-	iptables -t mangle -F diverIPV4
-	iptables -t mangle -F passwallIPV4
-	iptables -t mangle -F passwallIPV4MASK
-	# 删除链中的规则
-	iptables -t mangle -D PREROUTING -p tcp -m socket -j diverIPV4
-	iptables -t mangle -D PREROUTING -j passwallIPV4
-	iptables -t mangle -D OUTPUT -j passwallIPV4MASK
-	# 删除链
-	iptables -t mangle -X diverIPV4
-	iptables -t mangle -X passwallIPV4
-	iptables -t mangle -X passwallIPV4MASK
-	# 删除路由规则
-	ip rule del fwmark 1 table 100
-	ip route del local default dev lo table 100
-	if command -v ip6tables >/dev/null 2>&1; then
+	if cat /usr/local/etc/passwall/config.json | jq -e '.inbounds | any(.type == "tproxy")' >/dev/null; then
 		# 清除链中的所有规则
-		ip6tables -t mangle -F diverIPV6
-		ip6tables -t mangle -F passwallIPV6
-		ip6tables -t mangle -F passwallIPV6MASK
+		iptables -t mangle -F diverIPV4
+		iptables -t mangle -F passwallIPV4
+		iptables -t mangle -F passwallIPV4MASK
 		# 删除链中的规则
-		ip6tables -t mangle -D PREROUTING -p tcp -m socket -j diverIPV6
-		ip6tables -t mangle -D PREROUTING -j passwallIPV6
-		ip6tables -t mangle -D OUTPUT -j passwallIPV6MASK
+		iptables -t mangle -D PREROUTING -p tcp -m socket -j diverIPV4
+		iptables -t mangle -D PREROUTING -j passwallIPV4
+		iptables -t mangle -D OUTPUT -j passwallIPV4MASK
 		# 删除链
-		ip6tables -t mangle -X diverIPV6
-		ip6tables -t mangle -X passwallIPV6
-		ip6tables -t mangle -X passwallIPV6MASK
+		iptables -t mangle -X diverIPV4
+		iptables -t mangle -X passwallIPV4
+		iptables -t mangle -X passwallIPV4MASK
 		# 删除路由规则
-		ip -6 route del local default dev lo table 106
-		ip -6 rule del fwmark 1 table 106
+		ip rule del fwmark 1 table 100
+		ip route del local default dev lo table 100
+		if command -v ip6tables >/dev/null 2>&1; then
+			# 清除链中的所有规则
+			ip6tables -t mangle -F diverIPV6
+			ip6tables -t mangle -F passwallIPV6
+			ip6tables -t mangle -F passwallIPV6MASK
+			# 删除链中的规则
+			ip6tables -t mangle -D PREROUTING -p tcp -m socket -j diverIPV6
+			ip6tables -t mangle -D PREROUTING -j passwallIPV6
+			ip6tables -t mangle -D OUTPUT -j passwallIPV6MASK
+			# 删除链
+			ip6tables -t mangle -X diverIPV6
+			ip6tables -t mangle -X passwallIPV6
+			ip6tables -t mangle -X passwallIPV6MASK
+			# 删除路由规则
+			ip -6 route del local default dev lo table 106
+			ip -6 rule del fwmark 1 table 106
+		fi
+	elif cat /usr/local/etc/passwall/config.json | jq -e '.inbounds | any(.type == "tun")' >/dev/null; then
+		# 删除防火墙规则
+		sed -i '/config forwarding/ {N; /option name '\''lan-proxy'\''/ {N; /option dest '\''proxy'\''/ {N; /option src '\''lan'\''/d}}}' /etc/config/firewall
+		sed -i '/config zone/ {N; /option name '\''proxy'\''/ {N; /option forward '\''REJECT'\''/ {N; /option output '\''ACCEPT'\''/ {N; /option input '\''ACCEPT'\''/ {N; /option mtu_fix '\''1'\''/ {N; /option device '\''tun0'\''/ {N; /list network '\''proxy'\''/d}}}}}}}' /etc/config/firewall
+		# 删除网口
+		sed -i '/config interface '\''proxy'\''/ {N; /option proto '\''none'\''/ {N; /option device '\''tun0'\''/d}}' /etc/config/network
+		# 删除iptables规则
+		iptables -D FORWARD -o tun+ -j ACCEPT
+	else
+		exit 1
 	fi
 }
 
@@ -63,6 +75,8 @@ creat_rules() {
 		tproxyPort=$(cat /usr/local/etc/passwall/config.json | jq -r '.inbounds[] | select(.type == "tproxy") | .listen_port')
 		# 获取代理流量标志
 		passwallMark=$(cat /usr/local/etc/passwall/config.json | grep mark | head -n 1 | cut -d \: -f2 | sed s/,//g)
+		# 获取所有iptables规则端口
+		ports=$(iptables -L -n | grep dpt: | awk '{for(i=1;i<=NF;i++) if ($i ~ /dpt:/) print $i}' | cut -d: -f2 | sort -n | uniq)
 		# 获取本机IPV4网段
 		localIPV4=$(ip -o -f inet addr show | grep "scope" | awk '/scope/ {print $4}')
 		# 新建路由表
@@ -81,11 +95,16 @@ creat_rules() {
 		# 设备白名单不走代理
 		while IFS= read -r line; do
 			line=$(echo "$line" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-			if [[ $line =~ ^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$ ]]; then
-				iptables -t mangle -A passwallIPV4 -m mac --mac-source $line -j RETURN
-			fi
+			case "$line" in
+			??:??:??:??:??:??)
+				iptables -t mangle -A passwallIPV4 -m mac --mac-source "$line" -j RETURN
+				;;
+			esac
 		done </usr/local/etc/passwall/rules/局域网设备白名单.txt
-		iptables -t mangle -A passwallIPV4 -j RETURN -m mark --mark 2
+		for port in $ports; do
+			iptables -t mangle -A passwallIPV4MASK -p udp --sport $port -j RETURN
+			iptables -t mangle -A passwallIPV4MASK -p tcp --sport $port -j RETURN
+		done
 		if [ -z "$passwallMark" ]; then
 			iptables -t mangle -A passwallIPV4 -j RETURN -m mark --mark $passwallMark
 		fi
@@ -98,8 +117,21 @@ creat_rules() {
 		iptables -t mangle -A passwallIPV4MASK -d 224.0.0.0/4 -j RETURN
 		iptables -t mangle -A passwallIPV4MASK -d 127.0.0.0/8 -j RETURN
 		iptables -t mangle -A passwallIPV4MASK -d 255.255.255.255/32 -j RETURN
+		# 设备白名单不走代理
+		while IFS= read -r line; do
+			line=$(echo "$line" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+			case "$line" in
+			??:??:??:??:??:??)
+				iptables -t mangle -A passwallIPV4 -m mac --mac-source "$line" -j RETURN
+				;;
+			esac
+		done </usr/local/etc/passwall/rules/局域网设备白名单.txt
 		for ipv4 in $localIPV4; do
 			iptables -t mangle -A passwallIPV4MASK -d $ipv4 -j RETURN
+		done
+		for port in $ports; do
+			iptables -t mangle -A passwallIPV4MASK -p udp --sport $port -j RETURN
+			iptables -t mangle -A passwallIPV4MASK -p tcp --sport $port -j RETURN
 		done
 		if [ -z "$passwallMark" ]; then
 			iptables -t mangle -A passwallIPV4MASK -j RETURN -m mark --mark $passwallMark
@@ -124,6 +156,10 @@ creat_rules() {
 			for ipv6 in $localIPV6; do
 				ip6tables -t mangle -A passwallIPV6 -d $ipv6 -j RETURN
 			done
+			for port in $ports; do
+				ip6tables -t mangle -A passwallIPV6 -p udp --sport $port -j RETURN
+				ip6tables -t mangle -A passwallIPV6 -p tcp --sport $port -j RETURN
+			done
 			if [ -z "$passwallMark" ]; then
 				ip6tables -t mangle -A passwallIPV6 -j RETURN -m mark --mark $passwallMark
 			fi
@@ -135,6 +171,10 @@ creat_rules() {
 			ip6tables -t mangle -N passwallIPV6MASK
 			for ipv6 in $localIPV6; do
 				ip6tables -t mangle -A passwallIPV6MASK -d $ipv6 -j RETURN
+			done
+			for port in $ports; do
+				ip6tables -t mangle -A passwallIPV6MASK -p udp --sport $port -j RETURN
+				ip6tables -t mangle -A passwallIPV6MASK -p tcp --sport $port -j RETURN
 			done
 			if [ -z "$passwallMark" ]; then
 				ip6tables -t mangle -A passwallIPV6MASK -j RETURN -m mark --mark $passwallMark
@@ -150,7 +190,30 @@ creat_rules() {
 		fi
 
 	elif cat /usr/local/etc/passwall/config.json | jq -e '.inbounds | any(.type == "tun")' >/dev/null; then
-		echo "存在 'type': 'tun'"
+		# 添加防火墙规则
+		cat <<EOF >>/etc/config/firewall
+config zone
+        option name 'proxy'
+        option forward 'REJECT'
+        option output 'ACCEPT'
+        option input 'ACCEPT'
+        option mtu_fix '1'
+        option device 'tun0'
+        list network 'proxy'
+
+config forwarding
+        option name 'lan-proxy'
+        option dest 'proxy'
+        option src 'lan'
+EOF
+		# 添加网口
+		cat <<EOF >>/etc/config/network
+config interface 'proxy'
+        option proto 'none'
+        option device 'tun0'
+EOF
+		# 添加iptables命令
+		iptables -I FORWARD -o tun+ -j ACCEPT
 	else
 		exit 1
 	fi
