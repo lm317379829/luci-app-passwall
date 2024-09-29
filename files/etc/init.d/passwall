@@ -5,6 +5,11 @@ START=99
 USE_PROCD=1
 
 start_service() {
+	logPath=$(cat /usr/local/etc/passwall/config.json | jq '.log.output')
+	logPath=$(echo "$logPath" | sed 's/^"//;s/"$//')
+	if [ "$logPath" != "null" ]; then
+		echo -n "" > $logPath
+	fi
 	clean_rules 2>/dev/null
 	procd_open_instance
 	procd_set_param command /usr/local/bin/passwall run -D /usr/local/etc/passwall
@@ -18,7 +23,6 @@ start_service() {
 
 stop_service() {
 	clean_rules 2>/dev/null
-	killall -9 passwall 2>/dev/null
 	procd_close_instance
 }
 
@@ -101,10 +105,12 @@ creat_rules() {
 				;;
 			esac
 		done </usr/local/etc/passwall/rules/局域网设备白名单.txt
-		for port in $ports; do
-			iptables -t mangle -A passwallIPV4 -p udp --sport $port -j RETURN
-			iptables -t mangle -A passwallIPV4 -p tcp --sport $port -j RETURN
-		done
+#		for port in $ports; do
+#			iptables -t mangle -A passwallIPV4 -p tcp --sport $port -j RETURN
+#			iptables -t mangle -A passwallIPV4 -p tcp --dport $port -j RETURN
+#			iptables -t mangle -A passwallIPV4 -p udp --sport $port -j RETURN
+#			iptables -t mangle -A passwallIPV4 -p udp --dport $port -j RETURN
+#		done
 		if [ -z "$passwallMark" ]; then
 			iptables -t mangle -A passwallIPV4 -j RETURN -m mark --mark $passwallMark
 		fi
@@ -131,7 +137,9 @@ creat_rules() {
 		done
 		for port in $ports; do
 			iptables -t mangle -A passwallIPV4MASK -p udp --sport $port -j RETURN
+#			iptables -t mangle -A passwallIPV4MASK -p udp --dport $port -j RETURN
 			iptables -t mangle -A passwallIPV4MASK -p tcp --sport $port -j RETURN
+#			iptables -t mangle -A passwallIPV4MASK -p tcp --dport $port -j RETURN
 		done
 		if [ -z "$passwallMark" ]; then
 			iptables -t mangle -A passwallIPV4MASK -j RETURN -m mark --mark $passwallMark
@@ -156,10 +164,12 @@ creat_rules() {
 			for ipv6 in $localIPV6; do
 				ip6tables -t mangle -A passwallIPV6 -d $ipv6 -j RETURN
 			done
-			for port in $ports; do
-				ip6tables -t mangle -A passwallIPV6 -p udp --sport $port -j RETURN
-				ip6tables -t mangle -A passwallIPV6 -p tcp --sport $port -j RETURN
-			done
+#			for port in $ports; do
+#				ip6tables -t mangle -A passwallIPV6 -p udp --sport $port -j RETURN
+#				ip6tables -t mangle -A passwallIPV6 -p udp --dport $port -j RETURN
+#				ip6tables -t mangle -A passwallIPV6 -p tcp --sport $port -j RETURN
+#				ip6tables -t mangle -A passwallIPV6 -p tcp --dport $port -j RETURN
+#			done
 			if [ -z "$passwallMark" ]; then
 				ip6tables -t mangle -A passwallIPV6 -j RETURN -m mark --mark $passwallMark
 			fi
@@ -174,7 +184,9 @@ creat_rules() {
 			done
 			for port in $ports; do
 				ip6tables -t mangle -A passwallIPV6MASK -p udp --sport $port -j RETURN
+#				ip6tables -t mangle -A passwallIPV6MASK -p udp --dport $port -j RETURN
 				ip6tables -t mangle -A passwallIPV6MASK -p tcp --sport $port -j RETURN
+#				ip6tables -t mangle -A passwallIPV6MASK -p tcp --dport $port -j RETURN
 			done
 			if [ -z "$passwallMark" ]; then
 				ip6tables -t mangle -A passwallIPV6MASK -j RETURN -m mark --mark $passwallMark
