@@ -8,7 +8,7 @@ start_service() {
 	logPath=$(cat /usr/local/etc/passwall/config.json | jq '.log.output')
 	logPath=$(echo "$logPath" | sed 's/^"//;s/"$//')
 	if [ "$logPath" != "null" ]; then
-		echo -n "" > $logPath
+		echo -n "" >$logPath
 	fi
 	clean_rules 2>/dev/null
 	procd_open_instance
@@ -28,6 +28,14 @@ stop_service() {
 
 clean_rules() {
 	if cat /usr/local/etc/passwall/config.json | jq -e '.inbounds | any(.type == "tproxy")' >/dev/null; then
+		# 恢复dns配置
+		uci delete dhcp.@dnsmasq[0].server
+		if [ -f /tmp/dnsConfig.tmp ]; then
+			dnsConfig=$(cat /tmp/dnsConfig.tmp)
+			uci add_list dhcp.@dnsmasq[0].server=$dnsConfig
+		fi
+		uci commit dhcp
+		/etc/init.d/dnsmasq restart
 		# 清除链中的所有规则
 		iptables -t mangle -F diverIPV4
 		iptables -t mangle -F passwallIPV4
@@ -79,35 +87,46 @@ creat_rules() {
 		tproxyPort=$(cat /usr/local/etc/passwall/config.json | jq -r '.inbounds[] | select(.type == "tproxy") | .listen_port')
 		# 获取代理流量标志
 		passwallMark=$(cat /usr/local/etc/passwall/config.json | grep mark | head -n 1 | cut -d \: -f2 | sed 's/,//g' | sed 's/^ *//;s/ *$//')
-		# 获取所有规则端口
-		userPorts=$(uci get passwall.@passwall[0].ports 2>/dev/null)
-		if [ $? -eq 0 ]; then
-			userPorts=$(echo "$userPorts" | sed 's/,/\n/g' | tr -d ' ' | sed '/^$/d')
-			else
-			userPorts=""
-		fi
-		iptablesPorts=$(iptables -L -n | grep dpt: | awk '{for(i=1;i<=NF;i++) if ($i ~ /dpt:/) print $i}' | cut -d: -f2)
-		if [ -n "$userPorts" ]; then
-			ports=$(echo -e "$userPorts\n$iptablesPorts" | sort -n | uniq)
-		else
-			ports=$iptablesPorts
-		fi
-
 		# 获取本机IPV4网段
+		lanIPV4=$(ip -o -f inet addr show | grep "lan" | awk '/scope/ {print $4}')
 		localIPV4=$(ip -o -f inet addr show | grep "scope" | awk '/scope/ {print $4}')
+		publicIPV4=$(wget --no-check-certificate --timeout=10 -qO- https://ipv4.icanhazip.com)
+
 		# 新建路由表
 		ip route add local default dev lo table 100
 		ip rule add fwmark 1 table 100
 		# 局域网设置
 		iptables -t mangle -N passwallIPV4
-		# 本机IPV4网段不进行代理
+		# 目标为本机IPV4网段的流量不走代理
 		for ipv4 in $localIPV4; do
+			if [ $ipv4 == $lanIPV4 ]; then
+				# 判断是否自定义了dns接口
+				if cat /usr/local/etc/passwall/config.json | jq -e '.inbounds | any(.type == "direct")' >/dev/null; then
+					dnsPort=$(cat /usr/local/etc/passwall/config.json | jq -r '.inbounds[] | select(.type == "direct") | .listen_port')
+					dnsConfig=$(uci get dhcp.@dnsmasq[0].server 2>/dev/null)
+					if [ $? -eq 0 ]; then
+						echo -n $dnsConfig >/tmp/dnsConfig.tmp
+						uci delete dhcp.@dnsmasq[0].server
+					fi
+					uci add_list dhcp.@dnsmasq[0].server=127.0.0.1#$dnsPort
+					uci commit dhcp
+					/etc/init.d/dnsmasq restart
+					iptables -t mangle -A passwallIPV4 -d $ipv4 -j RETURN
+				else
+					iptables -t mangle -A passwallIPV4 -d $ipv4 -p tcp -j RETURN
+					iptables -t mangle -A passwallIPV4 -d $ipv4 -p udp ! --dport 53 -j RETURN
+				fi
+			fi
 			iptables -t mangle -A passwallIPV4 -d $ipv4 -j RETURN
 		done
+		# 来自公网ipv4地址的流量不走代理
+		iptables -t mangle -A passwallIPV4 -s $publicIPV4 -j RETURN
+		# 目标为其他IPV4保留网段的流量不走代理
 		iptables -t mangle -A passwallIPV4 -d 0.0.0.0/8 -j RETURN
 		iptables -t mangle -A passwallIPV4 -d 224.0.0.0/4 -j RETURN
 		iptables -t mangle -A passwallIPV4 -d 127.0.0.1/32 -j RETURN
 		iptables -t mangle -A passwallIPV4 -d 255.255.255.255/32 -j RETURN
+
 		# 设备白名单不走代理
 		while IFS= read -r line; do
 			line=$(echo "$line" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
@@ -117,18 +136,23 @@ creat_rules() {
 				;;
 			esac
 		done </usr/local/etc/passwall/rules/局域网设备白名单.txt
-		for port in $ports; do
-			iptables -t mangle -A passwallIPV4 -p tcp --dport $port -j RETURN
-			iptables -t mangle -A passwallIPV4 -p udp --dport $port -j RETURN
-		done
+		# 处理过的流量打上标记，避免循环
 		if [ -z "$passwallMark" ]; then
 			iptables -t mangle -A passwallIPV4 -j RETURN -m mark --mark $passwallMark
 		fi
 		iptables -t mangle -A passwallIPV4 -p udp -j TPROXY --on-ip 127.0.0.1 --on-port $tproxyPort --tproxy-mark 1
 		iptables -t mangle -A passwallIPV4 -p tcp -j TPROXY --on-ip 127.0.0.1 --on-port $tproxyPort --tproxy-mark 1
 		iptables -t mangle -A PREROUTING -j passwallIPV4
+
 		# 本机IPV4设置
 		iptables -t mangle -N passwallIPV4MASK
+		# 目标为本机IPV4网段的流量不走代理
+		for ipv4 in $localIPV4; do
+			iptables -t mangle -A passwallIPV4MASK -d $ipv4 -j RETURN
+		done
+		# 来自公网ipv4地址的流量不走代理
+		iptables -t mangle -A passwallIPV4MASK -s $publicIPV4 -j RETURN
+		# 目标为其他IPV4保留网段的流量不走代理
 		iptables -t mangle -A passwallIPV4MASK -d 0.0.0.0/8 -j RETURN
 		iptables -t mangle -A passwallIPV4MASK -d 224.0.0.0/4 -j RETURN
 		iptables -t mangle -A passwallIPV4MASK -d 127.0.0.0/8 -j RETURN
@@ -142,14 +166,7 @@ creat_rules() {
 				;;
 			esac
 		done </usr/local/etc/passwall/rules/局域网设备白名单.txt
-		for ipv4 in $localIPV4; do
-			iptables -t mangle -A passwallIPV4MASK -d $ipv4 -j RETURN
-		done
-		iptables -t mangle -A INPUT -j RETURN
-		for port in $ports; do
-			iptables -t mangle -A passwallIPV4MASK -p udp --sport $port -j RETURN
-			iptables -t mangle -A passwallIPV4MASK -p tcp --sport $port -j RETURN
-		done
+		# 处理过的流量打上标记，避免循环
 		if [ -z "$passwallMark" ]; then
 			iptables -t mangle -A passwallIPV4MASK -j RETURN -m mark --mark $passwallMark
 		fi
@@ -165,18 +182,19 @@ creat_rules() {
 		if command -v ip6tables >/dev/null 2>&1; then
 			# 获取本机IPV6网段
 			localIPV6=$(ip -6 -o -f inet6 addr show | grep "scope" | awk '/scope/ {print $4}')
+			publicIPV6=$(wget --no-check-certificate --timeout=5 -qO- https://ipv6.icanhazip.com)
 			# 新建路由表
 			ip -6 route add local default dev lo table 106
 			ip -6 rule add fwmark 1 table 106
 			# 局域网IPV6设置
 			ip6tables -t mangle -N passwallIPV6
+			# 目标为本机IPV6网段的流量不走代理
 			for ipv6 in $localIPV6; do
 				ip6tables -t mangle -A passwallIPV6 -d $ipv6 -j RETURN
 			done
-			for port in $ports; do
-				ip6tables -t mangle -A passwallIPV6 -p udp --dport $port -j RETURN
-				ip6tables -t mangle -A passwallIPV6 -p tcp --dport $port -j RETURN
-			done
+			# 来自公网ipv6的流量不走代理
+			ip6tables -t mangle -A passwallIPV6 -s $publicIPV6 -j RETURN
+			# 处理过的流量打上标记，避免循环
 			if [ -z "$passwallMark" ]; then
 				ip6tables -t mangle -A passwallIPV6 -j RETURN -m mark --mark $passwallMark
 			fi
@@ -186,13 +204,13 @@ creat_rules() {
 
 			# 本机IPV6设置
 			ip6tables -t mangle -N passwallIPV6MASK
+			# 目标为本机IPV6网段的流量不走代理
 			for ipv6 in $localIPV6; do
 				ip6tables -t mangle -A passwallIPV6MASK -d $ipv6 -j RETURN
 			done
-			for port in $ports; do
-				ip6tables -t mangle -A passwallIPV6MASK -p udp --sport $port -j RETURN
-				ip6tables -t mangle -A passwallIPV6MASK -p tcp --sport $port -j RETURN
-			done
+			# 来自公网ipv6的流量不走代理
+			ip6tables -t mangle -A passwallIPV6MASK -s $publicIPV6 -j RETURN
+			# 处理过的流量打上标记，避免循环
 			if [ -z "$passwallMark" ]; then
 				ip6tables -t mangle -A passwallIPV6MASK -j RETURN -m mark --mark $passwallMark
 			fi
