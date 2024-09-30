@@ -18,7 +18,9 @@ start_service() {
 	procd_set_param stdout 1
 	procd_set_param stderr 1
 	procd_close_instance
-	creat_rules 2>/dev/null
+	if pgrep passwall > /dev/null; then
+		creat_rules 2>/dev/null
+	fi
 }
 
 stop_service() {
@@ -109,6 +111,9 @@ creat_rules() {
 					dnsPort=$(cat /usr/local/etc/passwall/config.json | jq -r '.inbounds[] | select(.type == "direct") | .listen_port')
 					dnsConfig=$(uci get dhcp.@dnsmasq[0].server 2>/dev/null)
 					if [ $? -eq 0 ]; then
+						if [ ! -d "/usr/local/etc/passwall" ]; then
+							mkdir -p /usr/local/etc/passwall
+						fi
 						echo -n $dnsConfig >/usr/local/etc/passwall/dnsConfig.tmp
 						uci delete dhcp.@dnsmasq[0].server
 					fi
