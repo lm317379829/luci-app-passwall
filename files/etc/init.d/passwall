@@ -79,8 +79,20 @@ creat_rules() {
 		tproxyPort=$(cat /usr/local/etc/passwall/config.json | jq -r '.inbounds[] | select(.type == "tproxy") | .listen_port')
 		# 获取代理流量标志
 		passwallMark=$(cat /usr/local/etc/passwall/config.json | grep mark | head -n 1 | cut -d \: -f2 | sed 's/,//g' | sed 's/^ *//;s/ *$//')
-		# 获取所有iptables规则端口
-		ports=$(iptables -L -n | grep dpt: | awk '{for(i=1;i<=NF;i++) if ($i ~ /dpt:/) print $i}' | cut -d: -f2 | sort -n | uniq)
+		# 获取所有规则端口
+		userPorts=$(uci get passwall.@passwall[0].ports 2>/dev/null)
+		if [ $? -eq 0 ]; then
+			userPorts=$(echo "$userPorts" | sed 's/,/\n/g' | tr -d ' ' | sed '/^$/d')
+			else
+			userPorts=""
+		fi
+		iptablesPorts=$(iptables -L -n | grep dpt: | awk '{for(i=1;i<=NF;i++) if ($i ~ /dpt:/) print $i}' | cut -d: -f2)
+		if [ -n "$userPorts" ]; then
+			ports=$(echo -e "$userPorts\n$iptablesPorts" | sort -n | uniq)
+		else
+			ports=$iptablesPorts
+		fi
+
 		# 获取本机IPV4网段
 		localIPV4=$(ip -o -f inet addr show | grep "scope" | awk '/scope/ {print $4}')
 		# 新建路由表
@@ -133,6 +145,7 @@ creat_rules() {
 		for ipv4 in $localIPV4; do
 			iptables -t mangle -A passwallIPV4MASK -d $ipv4 -j RETURN
 		done
+		iptables -t mangle -A INPUT -j RETURN
 		for port in $ports; do
 			iptables -t mangle -A passwallIPV4MASK -p udp --sport $port -j RETURN
 			iptables -t mangle -A passwallIPV4MASK -p tcp --sport $port -j RETURN
