@@ -1,5 +1,6 @@
 local fs = require "nixio.fs"
 local passwallPath = "/usr/local/bin/passwall"
+
 -- 检查文件是否存在
 if not fs.stat(passwallPath) then
     local tpl = require("luci.template")
@@ -62,6 +63,15 @@ function getSingBoxStatus()
         return "<span style='color: green;'><strong>Sing-Box 正在运行</strong></span>"
     else
         return "<span style='color: red;'><strong>Sing-Box 未运行</strong></span>"
+    end
+end
+
+-- 检查文件是否存在，读取文件内容并检查是否包含 "type": "tproxy"
+local configPath = "/usr/local/etc/passwall/config.json"
+if fs.stat(configPath) then
+    local configContent = fs.readfile(configPath)
+    if configContent and (configContent:find('"type": "tproxy"') or configContent:find('"type":"tproxy"')) then
+        ports = s:option(Value, "ports", "排除端口")
     end
 end
 
