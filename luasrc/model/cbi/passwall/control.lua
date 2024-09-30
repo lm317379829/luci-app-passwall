@@ -66,13 +66,4 @@ function getSingBoxStatus()
     end
 end
 
--- 检查文件是否存在，读取文件内容并检查是否包含 "type": "tproxy"
-local configPath = "/usr/local/etc/passwall/config.json"
-if fs.stat(configPath) then
-    local configContent = fs.readfile(configPath)
-    if configContent and (configContent:find('"type": "tproxy"') or configContent:find('"type":"tproxy"')) then
-        ports = s:option(Value, "ports", "排除端口")
-    end
-end
-
 return m
