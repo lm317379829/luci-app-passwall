@@ -31,9 +31,10 @@ clean_rules() {
 		sed -i '/\/etc\/init.d\/passwall restart/d' /lib/netifd/ppp-up
 		# 恢复dns配置
 		uci delete dhcp.@dnsmasq[0].server
-		if [ -f /tmp/dnsConfig.tmp ]; then
-			dnsConfig=$(cat /tmp/dnsConfig.tmp)
+		if [ -f /usr/local/etc/passwall/dnsConfig.tmp ]; then
+			dnsConfig=$(cat /usr/local/etc/passwall/dnsConfig.tmp)
 			uci add_list dhcp.@dnsmasq[0].server=$dnsConfig
+			rm -f /usr/local/etc/passwall/dnsConfig.tmp
 		fi
 		uci commit dhcp
 		/etc/init.d/dnsmasq restart
@@ -108,7 +109,7 @@ creat_rules() {
 					dnsPort=$(cat /usr/local/etc/passwall/config.json | jq -r '.inbounds[] | select(.type == "direct") | .listen_port')
 					dnsConfig=$(uci get dhcp.@dnsmasq[0].server 2>/dev/null)
 					if [ $? -eq 0 ]; then
-						echo -n $dnsConfig >/tmp/dnsConfig.tmp
+						echo -n $dnsConfig >/usr/local/etc/passwall/dnsConfig.tmp
 						uci delete dhcp.@dnsmasq[0].server
 					fi
 					uci add_list dhcp.@dnsmasq[0].server=127.0.0.1#$dnsPort
