@@ -41,15 +41,15 @@ clean_rules() {
 		uci commit dhcp
 		/etc/init.d/dnsmasq restart
 		# 清除链中的所有规则
-		iptables -t mangle -F diverIPV4
+#		iptables -t mangle -F diverIPV4
 		iptables -t mangle -F passwallIPV4
 		iptables -t mangle -F passwallIPV4MASK
 		# 删除链中的规则
-		iptables -t mangle -D PREROUTING -p tcp -m socket -j diverIPV4
+#		iptables -t mangle -D PREROUTING -p tcp -m socket -j diverIPV4
 		iptables -t mangle -D PREROUTING -j passwallIPV4
 		iptables -t mangle -D OUTPUT -j passwallIPV4MASK
 		# 删除链
-		iptables -t mangle -X diverIPV4
+#		iptables -t mangle -X diverIPV4
 		iptables -t mangle -X passwallIPV4
 		iptables -t mangle -X passwallIPV4MASK
 		# 删除路由规则
@@ -58,15 +58,15 @@ clean_rules() {
 		if command -v ip6tables >/dev/null 2>&1; then
 			sed -i '/\/etc\/init.d\/passwall restart/d' /lib/netifd/ppp6-up
 			# 清除链中的所有规则
-			ip6tables -t mangle -F diverIPV6
+#			ip6tables -t mangle -F diverIPV6
 			ip6tables -t mangle -F passwallIPV6
 			ip6tables -t mangle -F passwallIPV6MASK
 			# 删除链中的规则
-			ip6tables -t mangle -D PREROUTING -p tcp -m socket -j diverIPV6
+#			ip6tables -t mangle -D PREROUTING -p tcp -m socket -j diverIPV6
 			ip6tables -t mangle -D PREROUTING -j passwallIPV6
 			ip6tables -t mangle -D OUTPUT -j passwallIPV6MASK
 			# 删除链
-			ip6tables -t mangle -X diverIPV6
+#			ip6tables -t mangle -X diverIPV6
 			ip6tables -t mangle -X passwallIPV6
 			ip6tables -t mangle -X passwallIPV6MASK
 			# 删除路由规则
@@ -189,10 +189,10 @@ creat_rules() {
 		iptables -t mangle -A passwallIPV4MASK -p tcp -j MARK --set-mark 1
 		iptables -t mangle -A OUTPUT -j passwallIPV4MASK
 
-		iptables -t mangle -N diverIPV4
-		iptables -t mangle -A diverIPV4 -j MARK --set-mark 1
-		iptables -t mangle -A diverIPV4 -j ACCEPT
-		iptables -t mangle -I PREROUTING -p tcp -m socket -j diverIPV4
+#		iptables -t mangle -N diverIPV4
+#		iptables -t mangle -A diverIPV4 -j MARK --set-mark 1
+#		iptables -t mangle -A diverIPV4 -j ACCEPT
+#		iptables -t mangle -I PREROUTING -p tcp -m socket -j diverIPV4
 		# 判断主机是否支持IPV6
 		if command -v ip6tables >/dev/null 2>&1; then
 			echo "/etc/init.d/passwall restart" >> /lib/netifd/ppp6-up
@@ -238,10 +238,10 @@ creat_rules() {
 			ip6tables -t mangle -A passwallIPV6MASK -p tcp -j MARK --set-mark 1
 			ip6tables -t mangle -A OUTPUT -j passwallIPV6MASK
 
-			ip6tables -t mangle -N diverIPV6
-			ip6tables -t mangle -A diverIPV6 -j MARK --set-mark 1
-			ip6tables -t mangle -A diverIPV6 -j ACCEPT
-			ip6tables -t mangle -I PREROUTING -p tcp -m socket -j diverIPV6
+#			ip6tables -t mangle -N diverIPV6
+#			ip6tables -t mangle -A diverIPV6 -j MARK --set-mark 1
+#			ip6tables -t mangle -A diverIPV6 -j ACCEPT
+#			ip6tables -t mangle -I PREROUTING -p tcp -m socket -j diverIPV6
 		fi
 
 	elif cat /usr/local/etc/passwall/config.json | jq -e '.inbounds | any(.type == "tun")' >/dev/null; then
