@@ -263,8 +263,8 @@ creat_rules() {
 				if [ -n "$proxyPorts" ]; then
 					for port in $proxyPorts; do
 						port=$(echo "$port" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-						ip6tables -t mangle -A passwallIPV6 -d $ipv6 -p tcp ! --dport $port -j RETURN
-						ip6tables -t mangle -A passwallIPV6 -d $ipv6 -p udp ! --dport $port -j RETURN
+						ip6tables -t mangle -A passwallIPV6 -s $ipv6 -p tcp ! --dport $port -j RETURN
+						ip6tables -t mangle -A passwallIPV6 -s $ipv6 -p udp ! --dport $port -j RETURN
 					done
 				else
 					ip6tables -t mangle -A passwallIPV6 -s $ipv6 -j RETURN
