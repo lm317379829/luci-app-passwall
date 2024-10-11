@@ -138,11 +138,13 @@ creat_rules() {
 							mkdir -p /usr/local/etc/passwall
 						fi
 						echo -n "$dnsConfig" >/usr/local/etc/passwall/dnsConfig.tmp
-						uci delete dhcp.@dnsmasq[0].server
 					fi
-					uci add_list dhcp.@dnsmasq[0].server=127.0.0.1#$dnsPort
-					uci commit dhcp
-					/etc/init.d/dnsmasq restart
+					if [ "$dnsConfig" != "127.0.0.1#$dnsPort" ]; then
+						uci delete dhcp.@dnsmasq[0].server
+						uci add_list dhcp.@dnsmasq[0].server=127.0.0.1#$dnsPort
+						uci commit dhcp
+						/etc/init.d/dnsmasq restart
+					fi
 					iptables -t mangle -A passwallIPV4 -d $ipv4 -j RETURN
 				else
 					iptables -t mangle -A passwallIPV4 -d $ipv4 -p tcp -j RETURN
