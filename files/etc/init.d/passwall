@@ -32,8 +32,6 @@ stop_service() {
 clean_rules() {
 	if cat /usr/local/etc/passwall/config.json | jq -e '.inbounds | any(.type == "tproxy")' >/dev/null; then
 		sed -i '/\/etc\/init.d\/passwall restart/d' /lib/netifd/ppp-up
-		uci commit dhcp
-		/etc/init.d/dnsmasq restart
 		# 清除链中的所有规则
 #		iptables -t mangle -F diverIPV4
 		iptables -t mangle -F passwallIPV4
@@ -82,14 +80,18 @@ clean_rules() {
 
 clean_dnsConfig() {
 	# 恢复dns配置
-	uci delete dhcp.@dnsmasq[0].server
-	if [ -f /usr/local/etc/passwall/dnsConfig.tmp ]; then
-		dnsConfig=$(cat /usr/local/etc/passwall/dnsConfig.tmp)
-		uci add_list dhcp.@dnsmasq[0].server=$dnsConfig
-		rm -f /usr/local/etc/passwall/dnsConfig.tmp
+	dnsPort=$(cat /usr/local/etc/passwall/config.json | jq -r '.inbounds[] | select(.type == "direct") | .listen_port')
+	dnsConfig=$(uci get dhcp.@dnsmasq[0].server 2>/dev/null)
+	if [ $? -eq 0 ] && [ "$dnsConfig" == "127.0.0.1#$dnsPort" ]; then
+		uci delete dhcp.@dnsmasq[0].server
+		if [ -f /usr/local/etc/passwall/dnsConfig.tmp ]; then
+			dnsConfig=$(cat /usr/local/etc/passwall/dnsConfig.tmp)
+			uci add_list dhcp.@dnsmasq[0].server=$dnsConfig
+			rm -f /usr/local/etc/passwall/dnsConfig.tmp
+		fi
+		uci commit dhcp
+		/etc/init.d/dnsmasq restart
 	fi
-	uci commit dhcp
-	/etc/init.d/dnsmasq restart
 }
 
 creat_rules() {
