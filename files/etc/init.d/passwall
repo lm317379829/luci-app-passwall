@@ -195,7 +195,7 @@ creat_rules() {
 		lanIP=$(echo $lanIPV4 | cut -d'/' -f1)
 		iptables -t mangle -A passwallIPV4MASK -d $lanIP -j RETURN
 		for ipv4 in $localIPV4; do
-		if [ $ipv4 == $lanIPV4 ]; then
+			if [ $ipv4 == $lanIPV4 ]; then
 				# 判断是否自定义了dns接口
 				if cat /usr/local/etc/passwall/config.json | jq -e '.inbounds | any(.type == "direct")' >/dev/null; then
 					iptables -t mangle -A passwallIPV4MASK -d $ipv4 -j RETURN
