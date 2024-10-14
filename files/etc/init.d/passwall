@@ -67,11 +67,10 @@ clean_rules() {
 			ip -6 rule del fwmark 1 table 106
 		fi
 	elif cat /usr/local/etc/passwall/config.json | jq -e '.inbounds | any(.type == "tun")' >/dev/null; then
-		# 删除防火墙规则
-		sed -i '/config forwarding/ {N; /option name '\''lan-proxy'\''/ {N; /option dest '\''proxy'\''/ {N; /option src '\''lan'\''/d}}}' /etc/config/firewall
-		sed -i '/config zone/ {N; /option name '\''proxy'\''/ {N; /option forward '\''REJECT'\''/ {N; /option output '\''ACCEPT'\''/ {N; /option input '\''ACCEPT'\''/ {N; /option mtu_fix '\''1'\''/ {N; /option device '\''tun0'\''/ {N; /list network '\''proxy'\''/d}}}}}}}' /etc/config/firewall
-		# 删除网口
-		sed -i '/config interface '\''proxy'\''/ {N; /option proto '\''none'\''/ {N; /option device '\''tun0'\''/d}}' /etc/config/network
+		rm -f /etc/config/network
+		cp /etc/config/network.bak /etc/config/network
+		rm -f /etc/config/firewall
+		cp /etc/config/firewall.bak /etc/config/firewall
 		# 删除iptables规则
 		iptables -D FORWARD -o tun+ -j ACCEPT
 	else
@@ -327,6 +326,10 @@ creat_rules() {
 		fi
 
 	elif cat /usr/local/etc/passwall/config.json | jq -e '.inbounds | any(.type == "tun")' >/dev/null; then
+		rm -f /etc/config/network.bak
+		cp /etc/config/network /etc/config/network.bak
+		rm -f /etc/config/firewall.bak
+		cp /etc/config/firewall /etc/config/firewall.bak
 		# 添加防火墙规则
 		cat <<EOF >>/etc/config/firewall
 config zone
