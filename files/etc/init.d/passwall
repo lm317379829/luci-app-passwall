@@ -31,7 +31,8 @@ stop_service() {
 
 clean_rules() {
 	if cat /usr/local/etc/passwall/config.json | jq -e '.inbounds | any(.type == "tproxy")' >/dev/null; then
-		sed -i '/\/etc\/init.d\/passwall restart/d' /lib/netifd/ppp-up
+		rm -f /lib/netifd/ppp-up
+		cp /lib/netifd/ppp-up.bak /lib/netifd/ppp-up
 		# 清除链中的所有规则
 #		iptables -t mangle -F diverIPV4
 		iptables -t mangle -F passwallIPV4
@@ -96,6 +97,9 @@ clean_dnsConfig() {
 
 creat_rules() {
 	if cat /usr/local/etc/passwall/config.json | jq -e '.inbounds | any(.type == "tproxy")' >/dev/null; then
+		rm -f /lib/netifd/ppp-up.bak
+		cp /lib/netifd/ppp-up /lib/netifd/ppp-up.bak
+		echo "sleep 1" >> /lib/netifd/ppp-up
 		echo "/etc/init.d/passwall restart" >> /lib/netifd/ppp-up
 		# 获取透明代理端口
 		tproxyPort=$(cat /usr/local/etc/passwall/config.json | jq -r '.inbounds[] | select(.type == "tproxy") | .listen_port')
