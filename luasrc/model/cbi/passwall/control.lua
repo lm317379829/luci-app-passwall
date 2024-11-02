@@ -4,8 +4,8 @@ local http = require "luci.http"
 local dispatcher = require "luci.dispatcher"
 local passwallPath = "/usr/local/bin/passwall"
 
-m = Map("passwall", _("Passwall Control Panel"))
-s = m:section(TypedSection, "passwall", _("Control Settings"))
+m = Map("passwall", "Passwall控制面板")
+s = m:section(TypedSection, "passwall", "设置")
 s.anonymous = true
 
 -- 检查文件是否存在
@@ -26,10 +26,10 @@ status.cfgvalue = function(self, section)
 end
 
 -- 控制 passwall 的启动、停止和重启
-control = s:option(ListValue, "control", _("控制"))
-control:value("start", _("启动"))
-control:value("stop", _("停止"))
-control:value("restart", _("重启"))
+control = s:option(ListValue, "control", "控制")
+control:value("start", "启动")
+control:value("stop", "停止")
+control:value("restart", "重启")
 
 -- 根据选项执行不同的操作
 function control.write(self, section, value)
