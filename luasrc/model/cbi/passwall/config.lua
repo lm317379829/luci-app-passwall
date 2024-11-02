@@ -1,8 +1,9 @@
 local fs = require "nixio.fs"
-local Map, Section, Value = require("luci.model.uci").cursor(), Map, Value
+local uci = require("luci.model.uci").cursor()  -- 用于操作 UCI 配置
+local Map, TypedSection, Value = require("luci.cbi").Map, require("luci.cbi").TypedSection, require("luci.cbi").Value
 
-m = Map("passwall", _("Passwall Configuration"))
-s = m:section(TypedSection, "passwall", _("Configuration Settings"))
+m = Map("passwall", "Passwall配置")
+s = m:section(TypedSection, "passwall", "配置")
 s.anonymous = true
 
 local filePath = "/usr/local/etc/passwall/config.json"
@@ -18,7 +19,7 @@ if not fs.stat(filePath) then
 end
 
 -- 配置模板
-configTemplate = s:option(Value, "configTemplate", _("Configuration Template"))
+configTemplate = s:option(Value, "configTemplate")
 configTemplate.template = "cbi/tvalue"
 configTemplate.rows = 20
 
