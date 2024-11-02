@@ -35,7 +35,7 @@ ip_cidr：匹配 IP CIDR<br>
 ]]
 
 -- 创建 Map 对象
-m = Map("passwall", translate("Passwall Rules Configuration"), translate(description))
+m = Map("passwall", translate("Passwall规则"), translate(description))
 local ruleFiles = getRuleFiles()
 
 -- 如果没有找到规则文件，显示提示
@@ -48,7 +48,7 @@ if #ruleFiles == 0 then
     ]])
 else
     -- 创建一个 TypedSection
-    local s = m:section(TypedSection, "passwall", translate("Rule Files"))
+    local s = m:section(TypedSection, "passwall", translate("规则文件"))
     s.anonymous = true
 
     -- 为每个规则文件生成一个 Tab 和编辑区域
@@ -60,7 +60,7 @@ else
         s:tab(fileName, translate(fileName))
 
         -- 创建编辑区域
-        local configTemplate = s:taboption(fileName, Value, fileName, translate("Edit ") .. fileName)
+        local configTemplate = s:taboption(fileName, Value, fileName .. fileName)
         configTemplate.template = "cbi/tvalue"
         configTemplate.rows = 20
         configTemplate.filePath = filePath
