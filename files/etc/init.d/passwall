@@ -49,7 +49,6 @@ clean_rules() {
 		ip rule del fwmark 1 table 100
 		ip route del local default dev lo table 100
 		if command -v ip6tables >/dev/null 2>&1; then
-			sed -i '/\/etc\/init.d\/passwall restart/d' /lib/netifd/ppp6-up
 			# 清除链中的所有规则
 #			ip6tables -t mangle -F diverIPV6
 			ip6tables -t mangle -F passwallIPV6
