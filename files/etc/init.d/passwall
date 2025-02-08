@@ -97,6 +97,7 @@ creat_rules() {
 	if cat /usr/local/etc/passwall/config.json | jq -e '.inbounds | any(.type == "tproxy")' >/dev/null; then
 		rm -f /lib/netifd/ppp-up.bak
 		cp /lib/netifd/ppp-up /lib/netifd/ppp-up.bak
+		echo "" >> /lib/netifd/ppp-up
 		echo "sleep 1" >> /lib/netifd/ppp-up
 		echo "/etc/init.d/passwall restart" >> /lib/netifd/ppp-up
 		# 获取透明代理端口
@@ -125,6 +126,14 @@ creat_rules() {
 				iptables -t mangle -A passwallIPV4 -p udp --dport $port -j RETURN
 			done
 		fi
+		
+		# 用户自定义IP不走代理
+		for pass in $(uci get passwall.@passwall[0].pass); do
+			if ! echo "$pass" | grep -q ":"; then
+				iptables -t mangle -A passwallIPV4 -d $pass -j RETURN
+			fi
+		done
+		
 		# 目标为本机IPV4网段的流量不走代理
 		lanIP=$(echo $lanIPV4 | cut -d'/' -f1)
 		iptables -t mangle -A passwallIPV4 -d $lanIP -j RETURN
@@ -197,6 +206,14 @@ creat_rules() {
 				iptables -t mangle -A passwallIPV4MASK -p udp --dport $port -j RETURN
 			done
 		fi
+		
+		# 用户自定义IP不走代理
+		for pass in $(uci get passwall.@passwall[0].pass); do
+			if ! echo "$pass" | grep -q ":"; then
+				iptables -t mangle -A passwallIPV4MASK -d $pass -j RETURN
+			fi
+		done
+		
 		# 目标为本机IPV4网段的流量不走代理
 		lanIP=$(echo $lanIPV4 | cut -d'/' -f1)
 		iptables -t mangle -A passwallIPV4MASK -d $lanIP -j RETURN
@@ -235,14 +252,9 @@ creat_rules() {
 		iptables -t mangle -A passwallIPV4MASK -p udp -j MARK --set-mark 1
 		iptables -t mangle -A passwallIPV4MASK -p tcp -j MARK --set-mark 1
 		iptables -t mangle -A OUTPUT -j passwallIPV4MASK
-
-#		iptables -t mangle -N diverIPV4
-#		iptables -t mangle -A diverIPV4 -j MARK --set-mark 1
-#		iptables -t mangle -A diverIPV4 -j ACCEPT
-#		iptables -t mangle -I PREROUTING -p tcp -m socket -j diverIPV4
+		
 		# 判断主机是否支持IPV6
 		if command -v ip6tables >/dev/null 2>&1; then
-			echo "/etc/init.d/passwall restart" >> /lib/netifd/ppp6-up
 			# 获取本机IPV6网段
 			localIPV6=$(ip -6 -o -f inet6 addr show | awk '/scope/ {print $4}')
 			publicIPV6=$(ip -6 -o -f inet6 addr show | grep "br-lan" | grep "scope global dynamic noprefixroute" | awk '/scope/ {print $4}' | cut -d'/' -f1)
@@ -259,6 +271,14 @@ creat_rules() {
 					ip6tables -t mangle -A passwallIPV6 -p udp --dport $port -j RETURN
 				done
 			fi
+			
+			# 用户自定义IP不走代理
+			for pass in $(uci get passwall.@passwall[0].pass); do
+				if echo "$pass" | grep -q ":"; then
+					ip6tables -t mangle -A passwallIPV6 -d $pass -j RETURN
+				fi
+			done
+			
 			# 目标为本机IPV6网段的流量不走代理
 			for ipv6 in $localIPV6; do
 				ip6tables -t mangle -A passwallIPV6 -d $ipv6 -j RETURN
@@ -298,6 +318,14 @@ creat_rules() {
 					ip6tables -t mangle -A passwallIPV6MASK -p udp --dport $port -j RETURN
 				done
 			fi
+			
+			# 用户自定义IP不走代理
+			for pass in $(uci get passwall.@passwall[0].pass); do
+				if echo "$pass" | grep -q ":"; then
+					ip6tables -t mangle -A passwallIPV6 -d $pass -j RETURN
+				fi
+			done
+			
 			# 目标为本机IPV6网段的流量不走代理
 			for ipv6 in $localIPV6; do
 				ip6tables -t mangle -A passwallIPV6MASK -d $ipv6 -j RETURN
