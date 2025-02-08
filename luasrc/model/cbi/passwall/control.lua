@@ -70,4 +70,8 @@ function getSingBoxStatus()
     end
 end
 
+-- 添加多个 passIP 配置（DynamicList 允许用户输入多个值）
+pass = s:option(DynamicList, "pass", translate("不走代理的IP"))
+pass.placeholder = translate("请输入 IP")
+
 return m
