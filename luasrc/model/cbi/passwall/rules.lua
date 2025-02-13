@@ -1,6 +1,10 @@
 local fs = require("nixio.fs")
 local rulesDir = "/usr/local/etc/passwall/rules"
 
+if not fs.stat(rulesDir, "type") then
+    fs.mkdir(rulesDir)
+end
+
 -- 获取规则文件列表
 local function getRuleFiles()
     local files = {}
