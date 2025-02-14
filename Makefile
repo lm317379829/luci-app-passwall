@@ -2,7 +2,7 @@ include $(TOPDIR)/rules.mk
 
 LUCI_TITLE:=LuCI support for Passwall
 LUCI_PKGARCH:=all
-LUCI_DEPENDS:=+kmod-nft-tproxy +kmod-tun 
+LUCI_DEPENDS:=+kmod-nft-tproxy +kmod-tun jq
 
 PKG_NAME:=luci-app-passwall
 PKG_VERSION:=1.0
@@ -21,4 +21,6 @@ define Package/$(PKG_NAME)/install
 	$(CP) ./luasrc/* $(1)/usr/lib/lua/luci/
 endef
 
-$(eval $(call BuildPackage,$(PKG_NAME)))
+include ../../luci.mk
+
+# call BuildPackage - OpenWrt buildroot signature
