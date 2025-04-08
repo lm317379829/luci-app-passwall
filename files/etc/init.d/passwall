@@ -105,12 +105,7 @@ creat_rules() {
 		echo "" >> /lib/netifd/ppp-up
 		echo "sleep 1" >> /lib/netifd/ppp-up
 		echo "/etc/init.d/passwall restart" >> /lib/netifd/ppp-up
-		# 获取是否绕过大陆IP
-		bypassCN=$(uci get passwall.@passwall[0].bypassCN)
-		if [ "$bypassCN" == "1" ]; then
-    			chnrouteV4 &
-    			chnrouteV6 &
-		fi
+
 		# 获取透明代理端口
 		tproxyPort=$(cat /usr/local/etc/passwall/config.json | jq -r '.inbounds[] | select(.type == "tproxy") | .listen_port')
 		proxyPorts=$(cat /usr/local/etc/passwall/config.json | jq -r '.inbounds[] | select(.type != "direct") | select(.type != "tproxy") | .listen_port')
@@ -144,15 +139,6 @@ creat_rules() {
 				iptables -t mangle -A passwallIPV4 -d $pass -j RETURN
 			fi
 		done
-		
-		if [ "$bypassCN" == "1" ]; then
-			# 检查ipset是否存在
-			if ! ipset list -n | grep -qw "CNIPV4S"; then
-				echo "ipset CNIPV4S 不存在，创建新的hash:net集合..."
-				ipset create "CNIPV4S" hash:net
-			fi
-			iptables -t mangle -A passwallIPV4 -m set --match-set CNIPV4S src -j RETURN
-		fi
 		
 		# 目标为本机IPV4网段的流量不走代理
 		lanIP=$(echo $lanIPV4 | cut -d'/' -f1)
@@ -234,15 +220,6 @@ creat_rules() {
 			fi
 		done
 		
-		if [ "$bypassCN" == "1" ]; then
-			# 检查ipset是否存在
-			if ! ipset list -n | grep -qw "CNIPV4S"; then
-				echo "ipset CNIPV4S 不存在，创建新的hash:net集合..."
-				ipset create "CNIPV4S" hash:net
-			fi
-			iptables -t mangle -A passwallIPV4MASK -m set --match-set CNIPV4S src -j RETURN
-		fi
-		
 		# 目标为本机IPV4网段的流量不走代理
 		lanIP=$(echo $lanIPV4 | cut -d'/' -f1)
 		iptables -t mangle -A passwallIPV4MASK -d $lanIP -j RETURN
@@ -308,15 +285,6 @@ creat_rules() {
 				fi
 			done
 			
-			if [ "$bypassCN" == "1" ]; then
-				# 检查ipset是否存在
-				if ! ipset list -n | grep -qw "CNIPV6S"; then
-					echo "ipset CNIPV6S 不存在，创建新的hash:net集合..."
-					ipset create "CNIPV6S" hash:net family inet6
-				fi
-				ip6tables -t mangle -A passwallIPV6 -m set --match-set CNIPV6S src -j RETURN
-			fi
-			
 			# 目标为本机IPV6网段的流量不走代理
 			for ipv6 in $localIPV6; do
 				ip6tables -t mangle -A passwallIPV6 -d $ipv6 -j RETURN
@@ -363,15 +331,6 @@ creat_rules() {
 					ip6tables -t mangle -A passwallIPV6 -d $pass -j RETURN
 				fi
 			done
-			
-			if [ "$bypassCN" == "1" ]; then
-				# 检查ipset是否存在
-				if ! ipset list -n | grep -qw "CNIPV6S"; then
-					echo "ipset CNIPV6S 不存在，创建新的hash:net集合..."
-					ipset create "CNIPV6S" hash:net family inet6
-				fi
-				ip6tables -t mangle -A passwallIPV6MASK -m set --match-set CNIPV6S src -j RETURN
-			fi
 			
 			# 目标为本机IPV6网段的流量不走代理
 			for ipv6 in $localIPV6; do
@@ -431,66 +390,4 @@ EOF
 	else
 		exit 1
 	fi
-}
-
-chnrouteV4() {
-	# 检查文件是否存在
-	if [ ! -f "/tmp/chnroute.txt" ]; then
-		echo "chnroute 文件不存在，开始下载..."
-
-		# 使用wget下载（静默模式）
-		if wget -q "https://raw.githubusercontent.com/mayaxcn/china-ip-list/refs/heads/master/chnroute.txt" -O "/tmp/chnroute.txt"; then
-			echo "下载完成！文件已保存至：/tmp/chnroute.txt"
-			# 检查ipset是否存在
-			if ipset list -n | grep -qw "CNIPV4S"; then
-				echo "ipset CNIPV4S 已存在，清空内容..."
-				ipset flush "CNIPV4S"
-			else
-				echo "ipset CNIPV4S 不存在，创建新的hash:net集合..."
-				ipset create "CNIPV4S" hash:net
-			fi
-
-			# 导入IP段到ipset
-			echo "正在导入IP段文件 chnroute.txt 到 CNIPV4S..."
-			while IFS= read -r ip; do
-				# 跳过空行和注释行（以#开头的行）
-				if [[ -n "$ip" && "$ip" != "#"* ]]; then
-					ipset add "CNIPV4S" "$ip" 2>/dev/null
-				fi
-			done <"/tmp/chnroute.txt"
-		fi
-	fi
-	echo "chnrouteV6 执行完毕"
-	exit 0
-}
-
-chnrouteV6() {
-	# 检查文件是否存在
-	if [ ! -f "/tmp/chnrouteV6.txt" ]; then
-		echo "chnrouteV6 文件不存在，开始下载..."
-
-		# 使用wget下载（静默模式）
-		if wget -q "https://raw.githubusercontent.com/mayaxcn/china-ip-list/refs/heads/master/chnroute_v6.txt" -O "/tmp/chnrouteV6.txt"; then
-			echo "下载完成！文件已保存至：/tmp/chnrouteV6.txt"
-			# 检查ipset是否存在
-			if ipset list -n | grep -qw "CNIPV6S"; then
-				echo "ipset CNIPV6S 已存在，清空内容..."
-				ipset flush "CNIPV6S"
-			else
-				echo "ipset CNIPV6S 不存在，创建新的hash:net集合..."
-				ipset create "CNIPV6S" hash:net family inet6
-			fi
-
-			# 导入IP段到ipset
-			echo "正在导入IP段文件 chnrouteV6.txt 到 CNIPV6S..."
-			while IFS= read -r ip; do
-				# 跳过空行和注释行（以#开头的行）
-				if [[ -n "$ip" && "$ip" != "#"* ]]; then
-					ipset add "CNIPV6S" "$ip" 2>/dev/null
-				fi
-			done <"/tmp/chnrouteV6.txt"
-		fi
-	fi
-	echo "chnrouteV6 执行完毕"
-	exit 0
 }
