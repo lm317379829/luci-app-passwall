@@ -18,9 +18,14 @@ start_service() {
 	procd_set_param stdout 1
 	procd_set_param stderr 1
 	procd_close_instance
-	if pgrep passwall > /dev/null; then
-		creat_rules 2>/dev/null
-	fi
+	creat_rules 2>/dev/null
+	{
+		sleep 15
+		if ! pgrep passwall > /dev/null; then
+			clean_rules 2>/dev/null
+			clean_dnsConfig 2>/dev/null
+		fi
+	} &
 }
 
 stop_service() {
