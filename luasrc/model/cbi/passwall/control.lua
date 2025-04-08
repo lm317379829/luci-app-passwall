@@ -46,7 +46,7 @@ end
 
 -- 定义启动、停止和重启函数
 function startPassWall()
-    sys.call("/etc/init.d/passwall enable && /etc/init.d/passwall start")
+    sys.call("(/etc/init.d/passwall enable; /etc/init.d/passwall start) &")
     http.redirect(dispatcher.build_url("admin", "services", "passwall"))
 end
 
@@ -56,7 +56,7 @@ function stopPassWall()
 end
 
 function restartPassWall()
-    sys.call("/etc/init.d/passwall restart")
+    sys.call("(/etc/init.d/passwall restart) &")
     http.redirect(dispatcher.build_url("admin", "services", "passwall"))
 end
 
