@@ -73,10 +73,6 @@ local hasTproxy = os.execute(
 ) == 0
 -- 添加多个 pass 配置（DynamicList 允许用户输入多个值）
 if hasTproxy then
-    -- 添加绕过大陆IP的勾选项 (新增代码)
-    bypassCN = s:option(Flag, "bypassCN", translate("绕过大陆IP"))
-    bypassCN.default = false  -- 默认不勾选
-    bypassCN.rmempty = false  -- 强制必须选择
     pass = s:option(DynamicList, "pass", translate("不走代理的IP"))
     pass.placeholder = translate("请输入 IP")
 end
