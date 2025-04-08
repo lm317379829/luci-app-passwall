@@ -42,7 +42,7 @@ end
 
 -- 定义不同选项对应的函数
 function startPassWall()
-    luci.sys.call("/etc/init.d/passwall enable && /etc/init.d/passwall start")
+    luci.sys.call("(/etc/init.d/passwall enable; /etc/init.d/passwall start) &")
     luci.http.redirect(luci.dispatcher.build_url("admin", "services", "passwall"))
 end
 
@@ -52,7 +52,7 @@ function stopPassWall()
 end
 
 function restartPassWall()
-    luci.sys.call("/etc/init.d/passwall restart")
+    luci.sys.call("(/etc/init.d/passwall restart) &")
     luci.http.redirect(luci.dispatcher.build_url("admin", "services", "passwall"))
 end
 
