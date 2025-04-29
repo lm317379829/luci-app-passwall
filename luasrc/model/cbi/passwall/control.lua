@@ -58,7 +58,7 @@ end
 
 -- 添加检查 passwall 运行状态的函数
 function getSingBoxStatus()
-    local running = luci.sys.call("pgrep passwall >/dev/null") == 0
+    local running = luci.sys.call("pgrep sing-box >/dev/null") == 0
     if running then
         return "<span style='color: green;'><strong>Sing-Box 正在运行</strong></span>"
     else
