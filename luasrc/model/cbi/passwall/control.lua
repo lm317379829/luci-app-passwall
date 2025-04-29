@@ -2,7 +2,7 @@ local fs = require "nixio.fs"
 local sys = require "luci.sys"
 local http = require "luci.http"
 local dispatcher = require "luci.dispatcher"
-local passwallPath = "/usr/local/bin/passwall"
+local passwallPath = "/usr/local/bin/sing-box"
 
 m = Map("passwall", "Passwall控制面板")
 s = m:section(TypedSection, "passwall", "设置")
@@ -13,7 +13,7 @@ if not fs.stat(passwallPath) then
     local tpl = require("luci.template")
     tpl.render_string([[
         <script type="text/javascript">
-            alert('未找到 sing-box，请下载后重命名为 passwall 放置于 /usr/local/bin，并确保有执行权限');
+            alert('未找到 sing-box，请下载后重命名为 sing-box 放置于 /usr/local/bin，并确保有执行权限');
         </script>
     ]])
 end
