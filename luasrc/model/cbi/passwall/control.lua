@@ -62,7 +62,7 @@ end
 
 -- 检查 passwall 的运行状态
 function getSingBoxStatus()
-    local running = sys.call("pgrep passwall >/dev/null") == 0
+    local running = sys.call("pgrep sing-box >/dev/null") == 0
     if running then
         return "<span style='color: green;'><strong>Sing-Box 正在运行</strong></span>"
     else
