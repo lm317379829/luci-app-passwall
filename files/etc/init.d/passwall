@@ -12,19 +12,24 @@ start_service() {
 	fi
 	clean_rules 2>/dev/null
 	procd_open_instance
-	procd_set_param command /usr/local/bin/passwall run -D /usr/local/etc/passwall
+	procd_set_param command /usr/local/bin/sing-box run -D /usr/local/etc/passwall
 	procd_set_param respawn
-	procd_set_param file /var/run/passwall.pid
+	procd_set_param file /var/run/sing-box.pid
 	procd_set_param stdout 1
 	procd_set_param stderr 1
 	procd_close_instance
 	creat_rules 2>/dev/null
 	{
+		echo "正在检查 Sing-Box 启动情况"
 		sleep 15
-		if ! pgrep passwall > /dev/null; then
+		if ! pgrep sing-box > /dev/null; then
+			echo "Sing-Box 未启动, 开始清除规则"
 			clean_rules 2>/dev/null
 			clean_dnsConfig 2>/dev/null
+			echo "Sing-Box 未启动, 清除规则完成"
 		fi
+		echo "检查 Sing-Box 启动情况完成"
+		exit 0
 	} &
 }
 
@@ -171,6 +176,7 @@ creat_rules() {
 				iptables -t mangle -A passwallIPV4 -d $ipv4 -j RETURN
 			fi
 		done
+		
 		# 来自公网ipv4地址的流量不走代理
 		for ipv4 in $publicIPV4; do
 			if [ ! -z "$fakeIPV4" ]; then
@@ -179,6 +185,7 @@ creat_rules() {
 				iptables -t mangle -A passwallIPV4 -s $ipv4 -j RETURN
 			fi
 		done
+		
 		# 目标为其他IPV4保留网段的流量不走代理
 		iptables -t mangle -A passwallIPV4 -d 0.0.0.0/8 -j RETURN
 		iptables -t mangle -A passwallIPV4 -d 224.0.0.0/4 -j RETURN
@@ -194,6 +201,7 @@ creat_rules() {
 				;;
 			esac
 		done </usr/local/etc/passwall/rules/局域网设备白名单.txt
+		
 		# 处理过的流量打上标记，避免循环
 		if [ ! -z "$passwallMark" ]; then
 			iptables -t mangle -A passwallIPV4 -j RETURN -m mark --mark $passwallMark
@@ -219,7 +227,7 @@ creat_rules() {
 				iptables -t mangle -A passwallIPV4MASK -d $pass -j RETURN
 			fi
 		done
-		
+
 		# 目标为本机IPV4网段的流量不走代理
 		lanIP=$(echo $lanIPV4 | cut -d'/' -f1)
 		iptables -t mangle -A passwallIPV4MASK -d $lanIP -j RETURN
@@ -284,7 +292,7 @@ creat_rules() {
 					ip6tables -t mangle -A passwallIPV6 -d $pass -j RETURN
 				fi
 			done
-			
+
 			# 目标为本机IPV6网段的流量不走代理
 			for ipv6 in $localIPV6; do
 				ip6tables -t mangle -A passwallIPV6 -d $ipv6 -j RETURN
@@ -306,6 +314,7 @@ creat_rules() {
 					;;
 				esac
 			done </usr/local/etc/passwall/rules/局域网设备白名单.txt
+			
 			# 处理过的流量打上标记，避免循环
 			if [ ! -z "$passwallMark" ]; then
 				ip6tables -t mangle -A passwallIPV6 -j RETURN -m mark --mark $passwallMark
@@ -344,6 +353,7 @@ creat_rules() {
 					ip6tables -t mangle -A passwallIPV6MASK -s $ipv6 -j RETURN
 				fi
 			done
+			
 			# 处理过的流量打上标记，避免循环
 			if [ ! -z "$passwallMark" ]; then
 				ip6tables -t mangle -A passwallIPV6MASK -j RETURN -m mark --mark $passwallMark
