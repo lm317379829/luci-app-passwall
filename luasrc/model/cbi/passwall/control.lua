@@ -1,11 +1,11 @@
 local fs = require "nixio.fs"
-local passwallPath = "/usr/local/bin/passwall"
+local passwallPath = "/usr/local/bin/sing-box"
 
 -- 检查文件是否存在
 if not fs.stat(passwallPath) then
     local tpl = require("luci.template")
     tpl.render_string([[<script type="text/javascript">
-        alert('未找到sing-box，下载后重命名为passwall后放置与/usr/local/bin并给与权限');
+        alert('未找到sing-box，下载后重命名为sing-box后放置与/usr/local/bin并给与权限');
     </script>]])
 end
 
